@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using howto_polygon_geometry;
 using NX_OSM.Core;
 using UnityEngine;
 using Random = UnityEngine.Random;
@@ -171,91 +172,211 @@ namespace NX_OSM.Generation
         protected override void OnStructureGeneration(ulong buildingID, Vector3 origin, List<Vector3> vertices, List<Vector3> normals, List<Vector2> uvs, List<int> ids, Terrain terrain)
         {
             OSMBuilding building = Map.Buildings.FirstOrDefault(b => b.ID == buildingID);
-
             if (building == null)
                 return;
-
+            
+            Dictionary<Vector2, int> floorCorners = new Dictionary<Vector2, int>();
+            Dictionary<Vector2, int> ceilingCorners = new Dictionary<Vector2, int>();
             for (int floor = building.MinFloor; floor < building.FloorCount; floor++)
             {
-                Vector3 floorCenter = new Vector3(0, building.MinHeight + floor * building.FloorHeight, 0);
-                Vector3 ceilingCenter = floorCenter + new Vector3(0, building.FloorHeight - building.MinHeight);
-
-                vertices.Add(floorCenter);
-                normals.Add(Vector3.up);
-                uvs.Add(new Vector2(.5f, .5f));
-
-                vertices.Add(ceilingCenter);
-                normals.Add(Vector3.down);
-                uvs.Add(new Vector2(.5f, .5f));
+                floorCorners.Clear();
+                ceilingCorners.Clear();
 
                 for (int i = 1; i < building.NodeIDs.Count; i++)
                 {
                     Vector3 n1 = Map.Nodes[building.NodeIDs[i - 1]] - origin,
                         n2 = Map.Nodes[building.NodeIDs[i]] - origin;
 
-                    float width = Vector3.Distance(n1, n2);
-
-                    Vector3 vert1 = n1 + new Vector3(0, building.MinHeight + floor * building.FloorHeight + GetTerrainHeight(terrain, n1)), // Bottom start
-                        vert2 = n2 + new Vector3(0, building.MinHeight + GetTerrainHeight(terrain, n2)), // Bottom end
-                        vert3 = vert1 + new Vector3(0, building.FloorHeight - building.MinHeight), // Top start
-                        vert4 = vert2 + new Vector3(0, building.FloorHeight - building.MinHeight); // Top End
-
-                    vertices.Add(vert1);
-                    vertices.Add(vert2);
-                    vertices.Add(vert3);
-                    vertices.Add(vert4);
-
-                    for (int j = 0; j < 4; j++)
-                        normals.Add(-Vector3.forward);
-
-                    int id1 = vertices.Count - 4, // vert1
-                        id2 = vertices.Count - 3, // vert2
-                        id3 = vertices.Count - 2, // vert3
-                        id4 = vertices.Count - 1; // vert4
-
-                    // TODO: Generate floor triangles
-                    ids.Add(floor - building.MinFloor);
-                    ids.Add(id1);
-                    ids.Add(id2);
-
-                    ids.Add(id2);
-                    ids.Add(id1);
-                    ids.Add(floor - building.MinFloor);
-
-                    // Generate wall triangles (oof)
-                    ids.Add(id1);
-                    ids.Add(id3);
-                    ids.Add(id2);
-
-                    ids.Add(id2);
-                    ids.Add(id3);
-                    ids.Add(id4);
-
-                    // Generate mirrored wall triangles to be sure the mesh is visible from all directions (big oof)
-                    ids.Add(id2);
-                    ids.Add(id3);
-                    ids.Add(id1);
-
-                    ids.Add(id4);
-                    ids.Add(id3);
-                    ids.Add(id2);
-
-                    // TODO: Generate ceileing triangles
-                    ids.Add(floor - building.MinFloor + 1);
-                    ids.Add(id3);
-                    ids.Add(id4);
-
-                    ids.Add(id4);
-                    ids.Add(id3);
-                    ids.Add(floor - building.MinFloor + 1);
-
-                    // Generate wall uvs
-                    uvs.Add(new Vector2(0, 0)); // Bottom left corner
-                    uvs.Add(new Vector2(width, 0)); // Bottom right corner
-                    uvs.Add(new Vector2(0, building.FloorHeight - building.MinHeight)); // Top left corner
-                    uvs.Add(new Vector2(width, building.FloorHeight - building.MinHeight)); // Top right corner
+                    GenerateWall(n1, n2, building, floor, vertices, normals, uvs, ids, terrain, floorCorners, ceilingCorners);
                 }
+
+                GenerateFloor(floorCorners, vertices, normals, uvs, ids);
+
+                GenerateCeiling(ceilingCorners, vertices, normals, uvs, ids);
             }
+
+            GenerateRoof(ceilingCorners, building);
+        }
+
+        private void GenerateWall(Vector3 point1, Vector3 point2, OSMBuilding building, int floor, List<Vector3> vertices,
+            List<Vector3> normals, List<Vector2> uvs, List<int> ids, Terrain terrain, Dictionary<Vector2, int> floorCorners,
+            Dictionary<Vector2, int> ceilingCorners)
+        {
+            float width = Vector3.Distance(point1, point2);
+
+            // Bottom start
+            Vector3 vertex = point1 + new Vector3(0, building.MinHeight + floor * building.FloorHeight + GetTerrainHeight(terrain, point1));
+            vertices.Add(vertex);
+            uvs.Add(new Vector2(0, 0));
+            int id1 = vertices.Count - 1;
+            floorCorners[new Vector2(vertex.x, vertex.z)] = id1;
+            normals.Add(-Vector3.forward);
+
+            // Top start
+            vertex += new Vector3(0, building.FloorHeight - building.MinHeight);
+            vertices.Add(vertex);
+            uvs.Add(new Vector2(0, building.FloorHeight - building.MinHeight));
+            int id2 = vertices.Count - 1;
+            ceilingCorners[new Vector2(vertex.x, vertex.z)] = id2;
+            normals.Add(-Vector3.forward);
+
+            // Bottom end
+            vertex = point2 + new Vector3(0, building.MinHeight + floor * building.FloorHeight + GetTerrainHeight(terrain, point2));
+            vertices.Add(vertex);
+            uvs.Add(new Vector2(width, 0));
+            int id3 = vertices.Count - 1;
+            normals.Add(-Vector3.forward);
+
+            // Top end
+            vertex += new Vector3(0, building.FloorHeight - building.MinHeight);
+            vertices.Add(vertex);
+            uvs.Add(new Vector2(width, building.FloorHeight - building.MinHeight));
+            int id4 = vertices.Count - 1;
+            normals.Add(-Vector3.forward);
+
+            // Generate wall triangles (oof)
+            ids.Add(id1);
+            ids.Add(id2);
+            ids.Add(id3);
+
+            ids.Add(id3);
+            ids.Add(id2);
+            ids.Add(id4);
+
+            // Generate mirrored wall triangles to be sure the mesh is visible from all directions (big oof)
+            ids.Add(id4);
+            ids.Add(id2);
+            ids.Add(id3);
+
+            ids.Add(id3);
+            ids.Add(id2);
+            ids.Add(id1);
+        }
+
+        private void GenerateFloor(Dictionary<Vector2, int> corners, List<Vector3> vertices, List<Vector3> normals, List<Vector2> uvs, List<int> ids)
+        {
+            List<Vector3> cornersVerts = new List<Vector3>();
+            foreach (KeyValuePair<Vector2, int> corner in corners) 
+                cornersVerts.Add(corner.Key);
+
+            Polygon poly = new Polygon(cornersVerts);
+            List<Triangle> tris = poly.Triangulate();
+
+            foreach (Triangle triangle in tris)
+            {
+                Vector3 point1 = vertices[corners[triangle.Points[2]]],
+                    point2 = vertices[corners[triangle.Points[1]]],
+                    point3 = vertices[corners[triangle.Points[0]]];
+                GenerateTriangle(point1, point2, point3, Vector3.up, vertices, normals, uvs, ids);
+            }
+        }
+
+        private void GenerateCeiling(Dictionary<Vector2, int> corners, List<Vector3> vertices, List<Vector3> normals, List<Vector2> uvs, List<int> ids)
+        {
+            List<Vector3> cornersVerts = new List<Vector3>();
+            foreach (KeyValuePair<Vector2, int> corner in corners)
+                cornersVerts.Add(corner.Key);
+
+            Polygon poly = new Polygon(cornersVerts);
+            List<Triangle> tris = poly.Triangulate();
+
+            foreach (Triangle triangle in tris)
+            {
+                Vector3 point1 = vertices[corners[triangle.Points[0]]],
+                    point2 = vertices[corners[triangle.Points[1]]],
+                    point3 = vertices[corners[triangle.Points[2]]];
+                GenerateTriangle(point3, point2, point1, Vector3.up, vertices, normals, uvs, ids);
+            }
+        }
+
+        private List<Vector3> GenerateRoofBase(List<Vector3> cornersVerts, List<Vector3> vertices, List<Vector3> normals, List<Vector2> uvs, List<int> ids)
+        {
+            Polygon poly = new Polygon(cornersVerts);
+            List<Triangle> tris = poly.Triangulate();
+
+            foreach (Triangle triangle in tris)
+            {
+                Vector3 point1 = new Vector3(triangle.Points[2].x, 0, triangle.Points[2].y),
+                    point2 = new Vector3(triangle.Points[1].x, 0, triangle.Points[1].y),
+                    point3 = new Vector3(triangle.Points[0].x, 0, triangle.Points[0].y);
+
+                GenerateTriangle(point1, point2, point3, Vector3.up, vertices, normals, uvs, ids);
+            }
+
+            return cornersVerts;
+        }
+
+        private void GenerateRoof(Dictionary<Vector2, int> corners, OSMBuilding building)
+        {
+            List<Vector3> cornersVerts = new List<Vector3>();
+            foreach (KeyValuePair<Vector2, int> corner in corners)
+                cornersVerts.Add(corner.Key);
+
+            GameObject roofObject = new GameObject("Roof");
+            roofObject.transform.SetParent(StructureObject.transform);
+            Vector3 roofPos = new Vector3(0, building.MinHeight + building.FloorCount * building.FloorHeight, 0);
+            float roofHeight = building.RoofFloorCount * building.FloorHeight;
+            roofObject.transform.localPosition = roofPos;
+            
+            // Add a mesh filter and a mesh renderer to the object
+            MeshFilter meshFilter = roofObject.AddComponent<MeshFilter>();
+            MeshRenderer meshRenderer = roofObject.AddComponent<MeshRenderer>();
+            MeshCollider meshCollider = roofObject.AddComponent<MeshCollider>();
+
+            meshRenderer.material = RoofMat;
+
+            // Create the mesh data lists
+            List<Vector3> vertices = new List<Vector3>();
+            List<Vector3> normals = new List<Vector3>();
+            List<Vector2> uvs = new List<Vector2>();
+            List<int> ids = new List<int>();
+
+            switch (building.RoofShape)
+            {
+                case OSMBuilding.OSMRoofShape.Flat:
+                    GenerateRoofBase(cornersVerts, vertices, normals, uvs, ids);
+                    break;
+                case OSMBuilding.OSMRoofShape.Skillion:
+                    break;
+                case OSMBuilding.OSMRoofShape.Gabled:
+                    break;
+                case OSMBuilding.OSMRoofShape.HalfHipped:
+                    break;
+                case OSMBuilding.OSMRoofShape.Hipped:
+                    break;
+                case OSMBuilding.OSMRoofShape.Pyramidal:
+                    Debug.Log("Pyramidal roof");
+                    cornersVerts = GenerateRoofBase(cornersVerts, vertices, normals, uvs, ids);
+                    
+                    Vector3 pyramidTip = new Vector3(0, roofHeight, 0);
+                    for (int i = 0; i < cornersVerts.Count; i++)
+                    {
+                        int nextIndex = i < cornersVerts.Count - 1 ? i + 1 : 0;
+
+                        Vector3 n1 = new Vector3(cornersVerts[i].x, 0, cornersVerts[i].y),
+                            n2 = new Vector3(cornersVerts[nextIndex].x, 0, cornersVerts[nextIndex].y);
+
+                        Vector3 dir = Vector3.Cross(pyramidTip - n1, n2 - pyramidTip).normalized;
+
+                        GenerateTriangle(n1, pyramidTip, n2, dir, vertices, normals, uvs, ids);
+                    }
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+
+            Mesh mesh = new Mesh();
+
+            mesh.vertices = vertices.ToArray();
+            mesh.normals = normals.ToArray();
+            mesh.triangles = ids.ToArray();
+            mesh.uv = uvs.ToArray();
+
+            mesh.Optimize();
+
+            // apply the loaded data
+            meshFilter.mesh = mesh;
+            meshCollider.sharedMesh = mesh;
         }
 
         #endregion

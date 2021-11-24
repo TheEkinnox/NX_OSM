@@ -62,7 +62,24 @@ namespace NX_OSM.Core
         private const int DefaultFloorCount = 1;
         private const int DefaultUndergroundFloorCount = 0;
         private const int DefaultMinFloor = 0;
-        private const OSMRoofShape DefaultRoofShape = OSMRoofShape.Flat;
+
+        private OSMRoofShape DefaultRoofShape
+        {
+            get
+            {
+                switch (BuildingType)
+                {
+                    case OSMBuildingType.Unknown:
+                        return OSMRoofShape.Pyramidal;
+                    case OSMBuildingType.Flat:
+                        return OSMRoofShape.Flat;
+                    case OSMBuildingType.House:
+                        return OSMRoofShape.Pyramidal; // TODO : Change default house roof shape to gabbled
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+            }
+        }
 
         #endregion
 
@@ -72,14 +89,16 @@ namespace NX_OSM.Core
         {
             get
             {
-                switch (BuildingType)
+                switch (RoofShape)
                 {
-                    case OSMBuildingType.Unknown:
+                    case OSMRoofShape.Flat:
                         return 0;
-                    case OSMBuildingType.House:
+                    case OSMRoofShape.Skillion:
+                    case OSMRoofShape.Gabled:
+                    case OSMRoofShape.HalfHipped:
+                    case OSMRoofShape.Hipped:
+                    case OSMRoofShape.Pyramidal:
                         return 1;
-                    case OSMBuildingType.Flat:
-                        return 0;
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
@@ -148,7 +167,7 @@ namespace NX_OSM.Core
                     RoofShape = OSMRoofShape.Pyramidal;
                     break;
                 default:
-                    RoofShape = OSMBuilding.DefaultRoofShape;
+                    RoofShape = DefaultRoofShape;
                     break;
             }
 

@@ -42,7 +42,7 @@ namespace NX_OSM.Core
             Railway
         }
 
-        private const float DefaultWidth = 1.5f;
+        private const float DefaultWidth = 3.08f;
         private const int DefaultLaneCount = 2;
 
         public OSMRoadType RoadType { get; private set; }
