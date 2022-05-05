@@ -78,18 +78,47 @@ namespace NX_OSM.Generation
                 return center;
 
             int nodesCount = osmWay.NodeIDs.Count;
-            
+
             // Don't include the last node since it is the same as the first one
             if (osmWay.NodeIDs[0] == osmWay.NodeIDs[nodesCount - 1])
                 nodesCount--;
 
-            for (int index = 0; index < nodesCount; index++)
+            if (nodesCount == 1)
+                return Map.Nodes[osmWay.NodeIDs[0]];
+
+            float minX = float.MaxValue;
+            float maxX = float.MinValue;
+
+            float minY = float.MaxValue;
+            float maxY = float.MinValue;
+
+            float minZ = float.MaxValue;
+            float maxZ = float.MinValue;
+
+            Vector3 curPoint;
+
+            for (int i = 0; i < nodesCount; i++)
             {
-                ulong nodeID = osmWay.NodeIDs[index];
-                center += Map.Nodes[nodeID];
+                ulong nodeID = osmWay.NodeIDs[i];
+                curPoint = Map.Nodes[nodeID];
+
+                if (i == 0 || curPoint.x > maxX)
+                    maxX = curPoint.x;
+                if (i == 0 || curPoint.x < minX)
+                    minX = curPoint.x;
+
+                if (i == 0 || curPoint.y > maxY)
+                    maxY = curPoint.y;
+                if (i == 0 || curPoint.y < minY)
+                    minY = curPoint.y;
+
+                if (i == 0 || curPoint.z > maxZ)
+                    maxZ = curPoint.z;
+                if (i == 0 || curPoint.z < minZ)
+                    minZ = curPoint.z;
             }
 
-            return center / nodesCount;
+            return new Vector3((minX + maxX) / 2f, (minY + maxY) / 2f, (minZ + maxZ) / 2f);
         }
 
         protected void GenerateStructure(OSMWay structure, Material mat)
@@ -156,11 +185,12 @@ namespace NX_OSM.Generation
             ids.Add(id1);
             ids.Add(id2);
             ids.Add(id3);
-            
+
             // TODO: Fix uvs
-            uvs.Add(new Vector2(0, 0));
-            uvs.Add(new Vector2(0, Vector3.Distance(point1, point2)));
-            uvs.Add(new Vector2(Vector3.Distance(point1, point3), 0));
+
+            uvs.Add(new Vector2(point1.x, point1.z));
+            uvs.Add(new Vector2(point2.x, point2.z));
+            uvs.Add(new Vector2(point3.x, point3.z));
         }
 
         protected float GetTerrainHeight(Terrain terrain, Vector3 pos)
