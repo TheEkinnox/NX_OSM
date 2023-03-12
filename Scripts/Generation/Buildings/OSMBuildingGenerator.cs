@@ -25,7 +25,7 @@ using Random = UnityEngine.Random;
 
     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
     IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
     AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -39,16 +39,13 @@ namespace NX_OSM.Generation
         #region FIELDS
 
         private Color _buildingMatColor, _roofMatColor, _doorMatColor;
-        private List<Material> _defaultMats, _houseMats, _flatMats, _roofMats, _doorMats;
+        private List<Material> _flatMats, _defaultMats, _houseMats, _roofMats, _doorMats;
 
         #endregion
 
         #region PROPERTIES AND INDEXERS
 
-        public override int NodeCount
-        {
-            get { return Map.Buildings.Count; }
-        }
+        public override int NodeCount => Map.Buildings.Count;
 
         private Material DefaultMat
         {
@@ -75,7 +72,7 @@ namespace NX_OSM.Generation
 
         private Material FlatMat
         {
-            get { return _flatMats != null && _flatMats.Count > 0 ? _flatMats[Random.Range(0, _flatMats.Count)] : DefaultMat; }
+            get { return _flatMats != null && _flatMats.Count > 0 ? _flatMats[Random.Range(0, _flatMats.Length)] : DefaultMat; }
         }
 
         private Material RoofMat
@@ -177,6 +174,7 @@ namespace NX_OSM.Generation
             
             Dictionary<Vector2, int> floorCorners = new Dictionary<Vector2, int>();
             Dictionary<Vector2, int> ceilingCorners = new Dictionary<Vector2, int>();
+
             for (int floor = building.MinFloor; floor < building.FloorCount; floor++)
             {
                 floorCorners.Clear();
@@ -195,46 +193,38 @@ namespace NX_OSM.Generation
                 GenerateCeiling(ceilingCorners, vertices, normals, uvs, ids);
             }
 
-            GenerateRoof(ceilingCorners, building);
+            GenerateRoof(ceilingCorners, vertices, building);
         }
 
-        private void GenerateWall(Vector3 point1, Vector3 point2, OSMBuilding building, int floor, List<Vector3> vertices,
-            List<Vector3> normals, List<Vector2> uvs, List<int> ids, Terrain terrain, Dictionary<Vector2, int> floorCorners,
-            Dictionary<Vector2, int> ceilingCorners)
+        private void GenerateWall(Vector3 point1, Vector3 point2, OSMBuilding building, int floor, ICollection<Vector3> vertices,
+            ICollection<Vector3> normals, ICollection<Vector2> uvs, ICollection<int> ids, Terrain terrain, IDictionary<Vector2, int> floorCorners,
+            IDictionary<Vector2, int> ceilingCorners)
         {
             float width = Vector3.Distance(point1, point2);
 
             // Bottom start
             Vector3 vertex = point1 + new Vector3(0, building.MinHeight + floor * building.FloorHeight + GetTerrainHeight(terrain, point1));
             vertices.Add(vertex);
-            uvs.Add(new Vector2(0, 0));
             int id1 = vertices.Count - 1;
             floorCorners[new Vector2(vertex.x, vertex.z)] = id1;
-            normals.Add(-Vector3.forward);
 
             // Top start
             vertex += new Vector3(0, building.FloorHeight - building.MinHeight);
             vertices.Add(vertex);
-            uvs.Add(new Vector2(0, building.FloorHeight - building.MinHeight));
             int id2 = vertices.Count - 1;
             ceilingCorners[new Vector2(vertex.x, vertex.z)] = id2;
-            normals.Add(-Vector3.forward);
 
             // Bottom end
             vertex = point2 + new Vector3(0, building.MinHeight + floor * building.FloorHeight + GetTerrainHeight(terrain, point2));
             vertices.Add(vertex);
-            uvs.Add(new Vector2(width, 0));
             int id3 = vertices.Count - 1;
-            normals.Add(-Vector3.forward);
 
             // Top end
             vertex += new Vector3(0, building.FloorHeight - building.MinHeight);
             vertices.Add(vertex);
-            uvs.Add(new Vector2(width, building.FloorHeight - building.MinHeight));
             int id4 = vertices.Count - 1;
-            normals.Add(-Vector3.forward);
 
-            // Generate wall triangles (oof)
+            // Generate wall triangles
             ids.Add(id1);
             ids.Add(id2);
             ids.Add(id3);
@@ -243,7 +233,19 @@ namespace NX_OSM.Generation
             ids.Add(id2);
             ids.Add(id4);
 
-            // Generate mirrored wall triangles to be sure the mesh is visible from all directions (big oof)
+            // Generate normals
+            normals.Add(Vector3.forward);
+            normals.Add(Vector3.forward);
+            normals.Add(Vector3.forward);
+            normals.Add(Vector3.forward);
+
+            // Generate uvs
+            uvs.Add(new Vector2(0, 0));
+            uvs.Add(new Vector2(0, building.FloorHeight - building.MinHeight));
+            uvs.Add(new Vector2(width, 0));
+            uvs.Add(new Vector2(width, building.FloorHeight - building.MinHeight));
+
+            // Generate mirrored wall triangles to be sure the mesh is visible from all directions
             ids.Add(id4);
             ids.Add(id2);
             ids.Add(id3);
@@ -253,7 +255,7 @@ namespace NX_OSM.Generation
             ids.Add(id1);
         }
 
-        private void GenerateFloor(Dictionary<Vector2, int> corners, List<Vector3> vertices, List<Vector3> normals, List<Vector2> uvs, List<int> ids)
+        private void GenerateFloor(Dictionary<Vector2, int> corners, IList<Vector3> vertices, ICollection<Vector3> normals, ICollection<Vector2> uvs, ICollection<int> ids)
         {
             List<Vector3> cornersVerts = new List<Vector3>();
             foreach (KeyValuePair<Vector2, int> corner in corners) 
@@ -264,17 +266,17 @@ namespace NX_OSM.Generation
 
             foreach (Triangle triangle in tris)
             {
-                Vector3 point1 = vertices[corners[triangle.Points[2]]],
+                Vector3 point1 = vertices[corners[triangle.Points[0]]],
                     point2 = vertices[corners[triangle.Points[1]]],
-                    point3 = vertices[corners[triangle.Points[0]]];
-                GenerateTriangle(point1, point2, point3, Vector3.up, vertices, normals, uvs, ids);
+                    point3 = vertices[corners[triangle.Points[2]]];
+                GenerateTriangle(point1, point2, point3, vertices, normals, uvs, ids);
             }
         }
 
-        private void GenerateCeiling(Dictionary<Vector2, int> corners, List<Vector3> vertices, List<Vector3> normals, List<Vector2> uvs, List<int> ids)
+        private void GenerateCeiling(Dictionary<Vector2, int> corners, IList<Vector3> vertices, ICollection<Vector3> normals, ICollection<Vector2> uvs, ICollection<int> ids)
         {
             List<Vector3> cornersVerts = new List<Vector3>();
-            foreach (KeyValuePair<Vector2, int> corner in corners)
+            foreach (KeyValuePair<Vector2, int> corner in corners) 
                 cornersVerts.Add(corner.Key);
 
             Polygon poly = new Polygon(cornersVerts);
@@ -285,33 +287,33 @@ namespace NX_OSM.Generation
                 Vector3 point1 = vertices[corners[triangle.Points[0]]],
                     point2 = vertices[corners[triangle.Points[1]]],
                     point3 = vertices[corners[triangle.Points[2]]];
-                GenerateTriangle(point3, point2, point1, Vector3.up, vertices, normals, uvs, ids);
+                GenerateTriangle(point3, point2, point1, vertices, normals, uvs, ids);
             }
         }
 
-        private List<Vector3> GenerateRoofBase(List<Vector3> cornersVerts, List<Vector3> vertices, List<Vector3> normals, List<Vector2> uvs, List<int> ids)
-        {
-            Polygon poly = new Polygon(cornersVerts);
-            List<Triangle> tris = poly.Triangulate();
-
-            foreach (Triangle triangle in tris)
-            {
-                Vector3 point1 = new Vector3(triangle.Points[2].x, 0, triangle.Points[2].y),
-                    point2 = new Vector3(triangle.Points[1].x, 0, triangle.Points[1].y),
-                    point3 = new Vector3(triangle.Points[0].x, 0, triangle.Points[0].y);
-
-                GenerateTriangle(point1, point2, point3, Vector3.up, vertices, normals, uvs, ids);
-            }
-
-            return cornersVerts;
-        }
-
-        private void GenerateRoof(Dictionary<Vector2, int> corners, OSMBuilding building)
+        private void GenerateRoofBase(Dictionary<Vector2, int> corners, ICollection<Vector3> vertices, IList<Vector3> buildingVertices, ICollection<Vector3> normals, ICollection<Vector2> uvs, ICollection<int> ids)
         {
             List<Vector3> cornersVerts = new List<Vector3>();
             foreach (KeyValuePair<Vector2, int> corner in corners)
                 cornersVerts.Add(corner.Key);
 
+            Polygon poly = new Polygon(cornersVerts);
+            List<Triangle> tris = poly.Triangulate();
+
+            foreach (Triangle triangle in tris)
+            {
+                Vector3 point1 = buildingVertices[corners[triangle.Points[2]]],
+                    point2 = buildingVertices[corners[triangle.Points[1]]],
+                    point3 = buildingVertices[corners[triangle.Points[0]]];
+
+                point1.y = point2.y = point3.y = 0;
+
+                GenerateTriangle(point1, point2, point3, vertices, normals, uvs, ids);
+            }
+        }
+
+        private void GenerateRoof(Dictionary<Vector2, int> corners, IList<Vector3> buildingVertices, OSMBuilding building)
+        {
             GameObject roofObject = new GameObject("Roof");
             roofObject.transform.SetParent(StructureObject.transform);
             Vector3 roofPos = new Vector3(0, building.MinHeight + building.FloorCount * building.FloorHeight, 0);
@@ -331,10 +333,16 @@ namespace NX_OSM.Generation
             List<Vector2> uvs = new List<Vector2>();
             List<int> ids = new List<int>();
 
+            GenerateRoofBase(corners, vertices, buildingVertices, normals, uvs, ids);
+
+            List<Vector3> cornersVerts = new List<Vector3>();
+
+            foreach (int cornerIndex in corners.Values)
+                cornersVerts.Add(buildingVertices[cornerIndex] - new Vector3(0, building.Height));
+
             switch (building.RoofShape)
             {
                 case OSMBuilding.OSMRoofShape.Flat:
-                    GenerateRoofBase(cornersVerts, vertices, normals, uvs, ids);
                     break;
                 case OSMBuilding.OSMRoofShape.Skillion:
                     break;
@@ -345,21 +353,7 @@ namespace NX_OSM.Generation
                 case OSMBuilding.OSMRoofShape.Hipped:
                     break;
                 case OSMBuilding.OSMRoofShape.Pyramidal:
-                    Debug.Log("Pyramidal roof");
-                    cornersVerts = GenerateRoofBase(cornersVerts, vertices, normals, uvs, ids);
-                    
-                    Vector3 pyramidTip = new Vector3(0, roofHeight, 0);
-                    for (int i = 0; i < cornersVerts.Count; i++)
-                    {
-                        int nextIndex = i < cornersVerts.Count - 1 ? i + 1 : 0;
-
-                        Vector3 n1 = new Vector3(cornersVerts[i].x, 0, cornersVerts[i].y),
-                            n2 = new Vector3(cornersVerts[nextIndex].x, 0, cornersVerts[nextIndex].y);
-
-                        Vector3 dir = Vector3.Cross(pyramidTip - n1, n2 - pyramidTip).normalized;
-
-                        GenerateTriangle(n1, pyramidTip, n2, dir, vertices, normals, uvs, ids);
-                    }
+                    GeneratePyramidalRoof(roofHeight, cornersVerts, vertices, normals, uvs, ids);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -377,6 +371,19 @@ namespace NX_OSM.Generation
             // apply the loaded data
             meshFilter.mesh = mesh;
             meshCollider.sharedMesh = mesh;
+        }
+
+        private void GeneratePyramidalRoof(float roofHeight, IList<Vector3> corners, ICollection<Vector3> vertices, ICollection<Vector3> normals, ICollection<Vector2> uvs, ICollection<int> ids)
+        {
+            Debug.Log("Pyramidal roof");
+            Vector3 pyramidTip = new Vector3(0, roofHeight, 0);
+
+            for (int i = 0; i < corners.Count; i++)
+            {
+                int nextIndex = (i + 1) % corners.Count;
+
+                GenerateTriangle(corners[i], pyramidTip, corners[nextIndex], vertices, normals, uvs, ids);
+            }
         }
 
         #endregion

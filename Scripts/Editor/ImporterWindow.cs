@@ -44,6 +44,7 @@ namespace NX_OSM.Editor
         private const string FromFileText = "From file";
         private const float DefaultMinLon = 4.3514f, DefaultMinLat = 46.6616f, DefaultMaxLon = 4.3768f, DefaultMaxLat = 46.6710f;
         private const int CoordDecimalCount = 7;
+        private static readonly string CoordDecimalFormat = new string('#', CoordDecimalCount);
         private readonly float _coordPrecision = float.Parse($".{new string('0', CoordDecimalCount - 1)}1", CultureInfo.InvariantCulture);
         private const int CoordBoxWidth = 96;
         private const int CoordBoxHeight = 24;
@@ -226,10 +227,10 @@ namespace NX_OSM.Editor
 
                 if (errors.Count == 0)
                 {
-                    string minLonText = _minLon.ToString("0." + new string('#', CoordDecimalCount), CultureInfo.InvariantCulture);
-                    string minLatText = _minLat.ToString("0." + new string('#', CoordDecimalCount), CultureInfo.InvariantCulture);
-                    string maxLonText = _maxLon.ToString("0." + new string('#', CoordDecimalCount), CultureInfo.InvariantCulture);
-                    string maxLatText = _maxLat.ToString("0." + new string('#', CoordDecimalCount), CultureInfo.InvariantCulture);
+                    string minLonText = _minLon.ToString("0." + CoordDecimalFormat, CultureInfo.InvariantCulture);
+                    string minLatText = _minLat.ToString("0." + CoordDecimalFormat, CultureInfo.InvariantCulture);
+                    string maxLonText = _maxLon.ToString("0." + CoordDecimalFormat, CultureInfo.InvariantCulture);
+                    string maxLatText = _maxLat.ToString("0." + CoordDecimalFormat, CultureInfo.InvariantCulture);
                     _sourcePath = $"https://overpass-api.de/api/map?bbox={minLonText},{minLatText},{maxLonText},{maxLatText}";
                     _validPath = true;
                 }
@@ -291,11 +292,11 @@ namespace NX_OSM.Editor
             // NOTE: Building Materials
             SerializedObject so = new SerializedObject(this);
 
-            EditorGUILayout.PropertyField(so.FindProperty("_appartmentMaterials"), true);
-            EditorGUILayout.PropertyField(so.FindProperty("_houseMaterials"), true);
-            EditorGUILayout.PropertyField(so.FindProperty("_defaultBuildingMaterials"), true);
-            EditorGUILayout.PropertyField(so.FindProperty("_roofMaterials"), true);
-            EditorGUILayout.PropertyField(so.FindProperty("_doorMaterials"), true);
+            EditorGUILayout.PropertyField(so.FindProperty(nameof(_defaultBuildingMaterials)), true);
+            EditorGUILayout.PropertyField(so.FindProperty(nameof(_appartmentMaterials)), true);
+            EditorGUILayout.PropertyField(so.FindProperty(nameof(_houseMaterials)), true);
+            EditorGUILayout.PropertyField(so.FindProperty(nameof(_roofMaterials)), true);
+            EditorGUILayout.PropertyField(so.FindProperty(nameof(_doorMaterials)), true);
 
             so.ApplyModifiedProperties();
 

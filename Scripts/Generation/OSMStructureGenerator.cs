@@ -21,7 +21,7 @@ using UnityEngine;
 
     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
     IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
     AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -150,12 +150,13 @@ namespace NX_OSM.Generation
             // Generate the mesh based on the way type
             OnStructureGeneration(structure.ID, GetCenter(structure), vertices, normals, uvs, ids, MapRoot?.GetComponent<Terrain>());
 
-            Mesh mesh = new Mesh();
-
-            mesh.vertices = vertices.ToArray();
-            mesh.normals = normals.ToArray();
-            mesh.triangles = ids.ToArray();
-            mesh.uv = uvs.ToArray();
+            Mesh mesh = new Mesh
+            {
+                vertices = vertices.ToArray(),
+                normals = normals.ToArray(),
+                triangles = ids.ToArray(),
+                uv = uvs.ToArray()
+            };
 
             mesh.Optimize();
 
@@ -164,38 +165,57 @@ namespace NX_OSM.Generation
             meshCollider.sharedMesh = mesh;
         }
 
-        protected void GenerateTriangle(Vector3 point1, Vector3 point2, Vector3 point3, Vector3 direction, List<Vector3> vertices,
-            List<Vector3> normals, List<Vector2> uvs, List<int> ids)
+        protected void GenerateTriangle(Vector3 point1, Vector3 point2, Vector3 point3, ICollection<Vector3> vertices,
+            ICollection<Vector3> normals, ICollection<Vector2> uvs, ICollection<int> ids)
         {
+            Vector3 normal = Vector3.Cross(point2 - point1,
+                point3 - point1).normalized;
+
             // Bottom start
             vertices.Add(point1);
             int id1 = vertices.Count - 1;
-            normals.Add(direction);
+            normals.Add(normal);
 
             // Tip
             vertices.Add(point2);
             int id2 = vertices.Count - 1;
-            normals.Add(direction);
+            normals.Add(normal);
 
             // Bottom end
             vertices.Add(point3);
             int id3 = vertices.Count - 1;
-            normals.Add(direction);
+            normals.Add(normal);
 
             ids.Add(id1);
             ids.Add(id2);
             ids.Add(id3);
 
-            // TODO: Fix uvs
+            Quaternion rotateAlign = Quaternion.FromToRotation(normal, Vector3.forward);
 
-            uvs.Add(new Vector2(point1.x, point1.z));
-            uvs.Add(new Vector2(point2.x, point2.z));
-            uvs.Add(new Vector2(point3.x, point3.z));
+            Vector2 flattened1 = rotateAlign * point1;
+            Vector2 flattened2 = rotateAlign * point2;
+            Vector2 flattened3 = rotateAlign * point3;
+
+            uvs.Add(new Vector2(flattened1.x, flattened1.y));
+            uvs.Add(new Vector2(flattened2.x, flattened2.y));
+            uvs.Add(new Vector2(flattened3.x, flattened3.y));
+
+            // TODO: Align uvs correctly so they don't always face the same direction (basically try to preserve the y rotation)
+            // Potential solution :
+            /*Quaternion rotateAlign = Quaternion.FromToRotation(normal, Vector3.up);
+
+            Vector3 flattened1 = rotateAlign * point1;
+            Vector3 flattened2 = rotateAlign * point2;
+            Vector3 flattened3 = rotateAlign * point3;
+
+            uvs.Add(new Vector2(flattened1.x, flattened1.z));
+            uvs.Add(new Vector2(flattened2.x, flattened2.z));
+            uvs.Add(new Vector2(flattened3.x, flattened3.z));*/
         }
 
         protected float GetTerrainHeight(Terrain terrain, Vector3 pos)
         {
-            if (terrain == null)
+            if (terrain == null || terrain.terrainData == null)
                 return 0;
 
             return terrain.SampleHeight(terrain.transform.TransformPoint(pos));
