@@ -6,7 +6,6 @@ using System.Linq;
 using howto_polygon_geometry;
 using NX_OSM.Core;
 using UnityEngine;
-using Random = UnityEngine.Random;
 
 #endregion
 
@@ -51,7 +50,7 @@ namespace NX_OSM.Generation
         {
             get
             {
-                Material mat = _defaultMats != null && _defaultMats.Count > 0 ? _defaultMats[Random.Range(0, _defaultMats.Count)] : null;
+                Material mat = _defaultMats.GetRandom();
                 //Material mat = null;
 
                 if (mat == null)
@@ -65,21 +64,15 @@ namespace NX_OSM.Generation
         }
 
 
-        private Material HouseMat
-        {
-            get { return _houseMats != null && _houseMats.Count > 0 ? _houseMats[Random.Range(0, _houseMats.Count)] : DefaultMat; }
-        }
+        private Material HouseMat => _houseMats.GetRandom(DefaultMat);
 
-        private Material FlatMat
-        {
-            get { return _flatMats != null && _flatMats.Count > 0 ? _flatMats[Random.Range(0, _flatMats.Length)] : DefaultMat; }
-        }
+        private Material FlatMat => _flatMats.GetRandom(DefaultMat);
 
         private Material RoofMat
         {
             get
             {
-                Material mat = _roofMats != null && _roofMats.Count > 0 ? _roofMats[Random.Range(0, _roofMats.Count)] : null;
+                Material mat = _roofMats.GetRandom();
 
                 if (mat == null)
                 {
@@ -95,7 +88,7 @@ namespace NX_OSM.Generation
         {
             get
             {
-                Material mat = _doorMats != null && _doorMats.Count > 0 ? _doorMats[Random.Range(0, _doorMats.Count)] : null;
+                Material mat = _doorMats.GetRandom();
 
                 if (mat == null)
                 {
