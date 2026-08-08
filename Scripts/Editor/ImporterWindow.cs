@@ -342,7 +342,6 @@ namespace NX_OSM.Editor
                         EditorGUILayout.HelpBox("Invalid root : No GameObject provided !", MessageType.Warning);
                     else if (GUILayout.Button("Prepare Builder"))
                     {
-                        // TODO: Create a monobehaviour for realtime generation
                         OSMMapBuilderBehaviour builderBehaviour = _rootObject.GetComponent<OSMMapBuilderBehaviour>();
                         if (builderBehaviour == null)
                             builderBehaviour = _rootObject.AddComponent<OSMMapBuilderBehaviour>();

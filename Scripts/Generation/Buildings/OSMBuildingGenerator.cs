@@ -53,7 +53,7 @@ namespace NX_OSM.Generation
                 Material mat = _defaultMats.GetRandom();
                 //Material mat = null;
 
-                if (mat == null)
+                if (!mat)
                 {
                     mat = new Material(DefaultShader);
                     mat.color = _buildingMatColor;
@@ -74,7 +74,7 @@ namespace NX_OSM.Generation
             {
                 Material mat = _roofMats.GetRandom();
 
-                if (mat == null)
+                if (!mat)
                 {
                     mat = new Material(DefaultShader);
                     mat.color = _roofMatColor;
@@ -90,7 +90,7 @@ namespace NX_OSM.Generation
             {
                 Material mat = _doorMats.GetRandom();
 
-                if (mat == null)
+                if (!mat)
                 {
                     mat = new Material(DefaultShader);
                     mat.color = _doorMatColor;
@@ -164,7 +164,7 @@ namespace NX_OSM.Generation
             OSMBuilding building = Map.Buildings.FirstOrDefault(b => b.ID == buildingID);
             if (building == null)
                 return;
-            
+
             Dictionary<Vector2, int> floorCorners = new Dictionary<Vector2, int>();
             Dictionary<Vector2, int> ceilingCorners = new Dictionary<Vector2, int>();
 
@@ -251,7 +251,7 @@ namespace NX_OSM.Generation
         private void GenerateFloor(Dictionary<Vector2, int> corners, IList<Vector3> vertices, ICollection<Vector3> normals, ICollection<Vector2> uvs, ICollection<int> ids)
         {
             List<Vector3> cornersVerts = new List<Vector3>();
-            foreach (KeyValuePair<Vector2, int> corner in corners) 
+            foreach (KeyValuePair<Vector2, int> corner in corners)
                 cornersVerts.Add(corner.Key);
 
             Polygon poly = new Polygon(cornersVerts);
@@ -269,7 +269,7 @@ namespace NX_OSM.Generation
         private void GenerateCeiling(Dictionary<Vector2, int> corners, IList<Vector3> vertices, ICollection<Vector3> normals, ICollection<Vector2> uvs, ICollection<int> ids)
         {
             List<Vector3> cornersVerts = new List<Vector3>();
-            foreach (KeyValuePair<Vector2, int> corner in corners) 
+            foreach (KeyValuePair<Vector2, int> corner in corners)
                 cornersVerts.Add(corner.Key);
 
             Polygon poly = new Polygon(cornersVerts);
@@ -312,7 +312,7 @@ namespace NX_OSM.Generation
             Vector3 roofPos = new Vector3(0, building.MinHeight + building.FloorCount * building.FloorHeight, 0);
             float roofHeight = building.RoofFloorCount * building.FloorHeight;
             roofObject.transform.localPosition = roofPos;
-            
+
             // Add a mesh filter and a mesh renderer to the object
             MeshFilter meshFilter = roofObject.AddComponent<MeshFilter>();
             MeshRenderer meshRenderer = roofObject.AddComponent<MeshRenderer>();
